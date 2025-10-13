@@ -3,61 +3,41 @@ Caso de Uso — Proyecto de Grado: Implementación de agentes de IA con LLMs loc
 
 ## 🧩 Descripción General
 
-Este repositorio implementa un agente de transcripción automática de archivos multimedia (audio o video), diseñado para ejecutarse en entornos locales y seguros, sin depender de servicios en la nube.
-El flujo es orquestado mediante n8n, utiliza Whisper (modelo de reconocimiento automático de voz – ASR) ejecutado en Ollama, y permite extraer, transcribir y almacenar el texto resultante.
+Este repositorio implementa un agente local de transcripción automática de archivos multimedia (audio o video), diseñado para operar en entornos institucionales sin conexión a la nube.
 
-El agente forma parte del proyecto de investigación sobre implementación de agentes de IA locales con LLMs, aplicado a procesos académico-administrativos de la universidad.
+El agente integra tres componentes principales:
+
+n8n → motor de orquestación de flujos.
+
+Transcriber Service (Whisper) → microservicio local basado en Ollama + Whisper.
+
+Ollama → entorno de ejecución de modelos de lenguaje y ASR (Automatic Speech Recognition).
+
+El objetivo es demostrar la viabilidad de ejecutar agentes de IA con LLMs locales en escenarios reales de procesamiento académico, como la transcripción de clases, conferencias o entrevistas.
 
 ## 🏗️ Componentes Principales
-Componente	Función	                                                                              Tecnología
-n8n	        Orquestación de flujo del agente. Define la lógica de carga, procesamiento y salida.	n8n.io
-
-Ollama	    Ejecución local de modelos LLM/ASR.	                                                  Ollama
-
-Whisper	    Modelo de reconocimiento automático de voz (ASR) para transcripción.	                OpenAI Whisper
-
-Storage	    Carpeta local o base de datos para guardar resultados.	                              Local/SQLite/PostgreSQL
+| Componente              | Función                                                                 | Tecnología                  |
+| ----------------------- | ----------------------------------------------------------------------- | --------------------------- |
+| **Ollama**              | Ejecuta modelos LLM y ASR localmente.                                   | [Ollama](https://ollama.ai) |
+| **Transcriber Service** | API REST que gestiona la transcripción de audio/video mediante Whisper. | Python + Flask              |
+| **n8n**                 | Orquestador del flujo general: carga → transcripción → almacenamiento.  | [n8n.io](https://n8n.io)    |
 
 
 ## 🧠 Flujo de Trabajo (Workflow en n8n)
 
-1. Carga del archivo multimedia
+Accede a:
 
-  - El usuario sube un archivo .mp3, .mp4, .wav o .m4a al flujo de n8n.
+http://localhost:5678
 
-  - El archivo se almacena temporalmente en una carpeta local (p. ej. /data/input).
+Flujo base sugerido:
 
-2. Llamado al modelo Whisper (ASR)
+| Paso | Nodo                      | Descripción                                                        |
+| ---- | ------------------------- | ------------------------------------------------------------------ |
+| 1    | **Read Binary File**      | Carga el archivo multimedia desde `/data/input`.                   |
+| 2    | **HTTP Request**          | Envia el archivo al endpoint `http://transcriber:8000/transcribe`. |
+| 3    | **Set / Function Node**   | Extrae el texto del campo `response`.                              |
+| 4    | **Write File / Database** | Guarda la transcripción en `/data/output/`.                        |
 
-  - n8n ejecuta una llamada HTTP a Ollama:
-    
-  ```bash
-  POST http://localhost:11434/api/generate
-{
-  "model": "whisper",
-  "input": "@ruta_del_archivo"
-}
-```
-
-- Ollama procesa el audio y devuelve la transcripción en texto plano.
-
-3. Procesamiento del texto
-
-  - n8n limpia o segmenta el texto según la configuración del flujo.
-
-  - Opcional: se puede ejecutar un modelo LLM (por ejemplo, Mistral) para resumir o categorizar la transcripción.
-
-4. Almacenamiento y salida
-
-  - La transcripción se guarda en una carpeta local (/data/output/transcripciones).
-
-  - Opcionalmente se puede:
-
-    - Enviar por correo electrónico.
-
-    - Guardar en una base de datos (SQLite, PostgreSQL).
-
-    - Integrar con otro agente (por ejemplo, uno de análisis o búsqueda semántica).
 
 🧰 Requisitos Previos
 
@@ -96,14 +76,10 @@ http://localhost:5678
 
   - Agregar nodo Write Binary File / Database / Email para guardar o enviar la transcripción.
 
-## 🧪 Ejemplo de llamada a Whisper
+## 🧪 Ejemplo de prueba directa del microservicio
 ```bash
-curl -X POST http://localhost:11434/api/generate \
-     -H "Content-Type: application/json" \
-     -d '{
-           "model": "whisper",
-           "input": "@/data/input/clase1.mp3"
-         }'
+curl -X POST http://localhost:8000/transcribe \
+  -F "file=@data/input/clase1.mp3"
 ```
 
 Salida esperada:
@@ -133,7 +109,7 @@ agent-transcripcion-local/
 
 - Los archivos de audio/video no abandonan el entorno institucional.
 
-- Las credenciales y configuraciones se almacenan en variables de entorno seguras.
+- Las variables de entorno se manejan mediante Docker Compose.
 
 ## 📚 Referencias Técnicas
 
