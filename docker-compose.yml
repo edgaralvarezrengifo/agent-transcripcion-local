@@ -1,0 +1,50 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_EDITOR_BASE_URL=http://localhost:5678
+      - GENERIC_TIMEZONE=America/Bogota
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    depends_on:
+      - transcriber
+      - ollama
+
+  transcriber:
+    build: ./transcriber
+    container_name: transcriber
+    ports:
+      - "5000:5000"
+    environment:
+      - MODEL=base
+    volumes:
+      - ./uploads:/app/uploads
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=3600
+    command: ["serve"]
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  ollama_data:
+  qdrant_data:

@@ -1,0 +1,91 @@
+{
+  "name": "Transcripción y resumen con Ollama",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "transcribir",
+        "responseMode": "onReceived"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "http://transcriber:5000/transcribe",
+        "jsonParameters": false,
+        "sendBinaryData": true,
+        "binaryPropertyName": "data"
+      },
+      "name": "HTTP Request - Transcriber",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [500, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"model\": \"mistral\",\n  \"prompt\": \"Por favor resume el siguiente texto transcrito en máximo 5 viñetas:\\n\\n{{ $json[\"transcript\"] }}\"\n}"
+      },
+      "name": "HTTP Request - Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { mensaje: '✅ Transcripción completada y resumen generado', transcripcion: $json[\"transcript\"], resumen: $json[\"response\"] } }];"
+      },
+      "name": "Function - Resultado",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Transcriber",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Transcriber": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Ollama": {
+      "main": [
+        [
+          {
+            "node": "Function - Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "staticData": null,
+  "id": "transcripcion-ollama"
+}
