@@ -146,8 +146,8 @@ Docker Compose
 
 ```mermaid
 flowchart LR
-    A[Archivo multimedia (MP4, MP3, WAV)] --> B[Nodo de carga en n8n]
-    B --> C[Whisper (ASR) vía Ollama]
-    C --> D[Transcripción generada]
-    D --> E[Almacenamiento local o base de datos]
-    D --> F[Envío opcional por correo o API]
+    A["Archivo multimedia: MP4 / MP3 / WAV"] --> B["Nodo de carga en n8n"]
+    B --> C["Whisper (ASR) ejecutado por Ollama"]
+    C --> D["Transcripción generada"]
+    D --> E["Almacenamiento local o base de datos"]
+    D --> F["Envío opcional por correo o API"]
