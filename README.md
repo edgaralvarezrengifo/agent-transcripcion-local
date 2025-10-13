@@ -113,6 +113,7 @@ Salida esperada:
 }
 
 ## 🧱 Directorios del Proyecto
+```bash
 agent-transcripcion-local/
 ├── docker-compose.yml
 ├── n8n_data/                  # Datos persistentes del orquestador
@@ -121,7 +122,7 @@ agent-transcripcion-local/
 │   ├── input/                 # Archivos multimedia de entrada
 │   └── output/                # Transcripciones generadas
 └── README.md
-
+```
 ## 🔐 Consideraciones de Privacidad y Seguridad
 
 - Todos los procesos se ejecutan localmente, sin enviar datos a servidores externos.
@@ -145,8 +146,8 @@ Docker Compose
 
 ```mermaid
 flowchart LR
-    A[🎞️ Archivo multimedia (MP4, MP3, WAV)] --> B[📥 Nodo de carga en n8n]
-    B --> C[🎙️ Whisper (ASR) vía Ollama]
-    C --> D[🧾 Transcripción generada]
-    D --> E[💾 Almacenamiento local o base de datos]
-    D --> F[📤 Envío opcional por correo o API]
+    A[Archivo multimedia (MP4, MP3, WAV)] --> B[Nodo de carga en n8n]
+    B --> C[Whisper (ASR) vía Ollama]
+    C --> D[Transcripción generada]
+    D --> E[Almacenamiento local o base de datos]
+    D --> F[Envío opcional por correo o API]
