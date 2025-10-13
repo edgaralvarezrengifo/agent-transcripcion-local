@@ -116,11 +116,15 @@ Salida esperada:
 ```bash
 agent-transcripcion-local/
 ├── docker-compose.yml
-├── n8n_data/                  # Datos persistentes del orquestador
-├── ollama_data/               # Modelos LLM/ASR descargados localmente
+├── transcriber/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── app.py
 ├── data/
-│   ├── input/                 # Archivos multimedia de entrada
-│   └── output/                # Transcripciones generadas
+│   ├── input/
+│   └── output/
+├── n8n_data/
+├── ollama_data/
 └── README.md
 ```
 ## 🔐 Consideraciones de Privacidad y Seguridad
