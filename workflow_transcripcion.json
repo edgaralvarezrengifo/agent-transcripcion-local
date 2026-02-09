@@ -5,48 +5,88 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "transcribir",
-        "responseMode": "onReceived"
+        "responseMode": "lastNode",
+        "options": {}
       },
+      "id": "webhook-node",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [250, 300]
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "transcribir-webhook"
     },
     {
       "parameters": {
-        "requestMethod": "POST",
+        "method": "POST",
         "url": "http://transcriber:5000/transcribe",
-        "jsonParameters": false,
-        "sendBinaryData": true,
-        "binaryPropertyName": "data"
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 1800000
+        }
       },
+      "id": "http-transcriber",
       "name": "HTTP Request - Transcriber",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [500, 300],
-      "credentials": {}
+      "typeVersion": 4.2,
+      "position": [500, 300]
     },
     {
       "parameters": {
-        "requestMethod": "POST",
+        "method": "POST",
         "url": "http://ollama:11434/api/generate",
-        "jsonParameters": true,
-        "options": {},
-        "bodyParametersJson": "={\n  \"model\": \"mistral\",\n  \"prompt\": \"Por favor resume el siguiente texto transcrito en máximo 5 viñetas:\\n\\n{{ $json[\"transcript\"] }}\"\n}"
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2:1b\",\n  \"prompt\": \"Eres un asistente experto en redacción de actas de reunión. SOLO respondes en español. A partir de la siguiente transcripción de una reunión, genera un ACTA DE REUNIÓN con la siguiente estructura:\\n\\nACTA DE REUNIÓN\\n\\nFecha: [Extraer del contexto o indicar 'Por definir']\\n\\nHora de inicio: [Extraer del contexto o indicar 'Por definir']\\n\\nModalidad: [Virtual/Presencial según el contexto]\\n\\nParticipantes:\\n[Lista de nombres mencionados en la transcripción]\\n\\nTemas tratados y acuerdos:\\n[Describir cada tema discutido con sus acuerdos correspondientes, usando el formato:\\nNombre del tema:\\nDescripción del acuerdo y responsable asignado]\\n\\nCompromisos pendientes:\\n[Lista de compromisos con los responsables asignados]\\n\\n---\\nTranscripción de la reunión:\\n{{ $json.transcript }}\\n\\n---\\nGenera el ACTA DE REUNIÓN en español:\",\n  \"stream\": false\n}",
+        "options": {
+          "timeout": 1800000
+        }
       },
+      "id": "http-ollama",
       "name": "HTTP Request - Ollama",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "typeVersion": 4.2,
       "position": [800, 300]
     },
     {
       "parameters": {
-        "functionCode": "return [{ json: { mensaje: '✅ Transcripción completada y resumen generado', transcripcion: $json[\"transcript\"], resumen: $json[\"response\"] } }];"
+        "jsCode": "const transcripcion = $('HTTP Request - Transcriber').first().json.transcript;\nconst actaReunion = $input.first().json.response;\nconst filename = $('HTTP Request - Transcriber').first().json.filename || 'audio';\n\nconst resultado = {\n  mensaje: '✅ Transcripción completada y acta de reunión generada',\n  filename: filename,\n  transcripcion: transcripcion,\n  acta_reunion: actaReunion,\n  timestamp: new Date().toISOString()\n};\n\n// Convert JSON to binary for file writing\nconst jsonString = JSON.stringify(resultado, null, 2);\nconst binaryData = Buffer.from(jsonString, 'utf-8');\n\nreturn [{\n  json: resultado,\n  binary: {\n    data: await this.helpers.prepareBinaryData(binaryData, `${filename.replace(/\\.[^/.]+$/, '')}_acta.json`, 'application/json')\n  }\n}];"
       },
-      "name": "Function - Resultado",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "id": "code-resultado",
+      "name": "Code - Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "fileName": "=/data/resultados/acta_{{ $json.filename.replace(/\\.[^/.]+$/, '') }}_{{ $now.format('yyyyMMdd_HHmmss') }}.json",
+        "options": {}
+      },
+      "id": "write-file",
+      "name": "Write Binary File",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return the final response (the file has been saved)\nconst resultado = $('Code - Resultado').first().json;\nconst filePath = $input.first().json.fileName;\n\nreturn [{\n  json: {\n    ...resultado,\n    archivoGuardado: filePath\n  }\n}];"
+      },
+      "id": "code-response",
+      "name": "Code - Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 300]
     }
   ],
   "connections": {
@@ -76,7 +116,29 @@
       "main": [
         [
           {
-            "node": "Function - Resultado",
+            "node": "Code - Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Resultado": {
+      "main": [
+        [
+          {
+            "node": "Write Binary File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Binary File": {
+      "main": [
+        [
+          {
+            "node": "Code - Response",
             "type": "main",
             "index": 0
           }
@@ -85,7 +147,9 @@
     }
   },
   "active": true,
-  "settings": {},
+  "settings": {
+    "executionTimeout": 3600
+  },
   "staticData": null,
   "id": "transcripcion-ollama"
 }
