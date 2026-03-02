@@ -8,6 +8,9 @@ WORKDIR /app
 # Copiar archivos
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir nvidia-cublas-cu12 nvidia-cudnn-cu12
+
+ENV LD_LIBRARY_PATH="/usr/local/lib/python3.11/site-packages/nvidia/cublas/lib:/usr/local/lib/python3.11/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}"
 
 COPY app.py .
 
