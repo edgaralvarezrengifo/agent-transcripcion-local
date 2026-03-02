@@ -59,7 +59,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const transcripcion = $('HTTP Request - Transcriber').first().json.transcript;\nconst actaReunion = $input.first().json.response;\nconst filename = $('HTTP Request - Transcriber').first().json.filename || 'audio';\n\nconst resultado = {\n  mensaje: '✅ Transcripción completada y acta de reunión generada',\n  filename: filename,\n  transcripcion: transcripcion,\n  acta_reunion: actaReunion,\n  timestamp: new Date().toISOString()\n};\n\n// Convert JSON to binary for file writing\nconst jsonString = JSON.stringify(resultado, null, 2);\nconst binaryData = Buffer.from(jsonString, 'utf-8');\n\nreturn [{\n  json: resultado,\n  binary: {\n    data: await this.helpers.prepareBinaryData(binaryData, `${filename.replace(/\\.[^/.]+$/, '')}_acta.json`, 'application/json')\n  }\n}];"
+        "jsCode": "const transcripcion = $('HTTP Request - Transcriber').first().json.transcript;\nconst actaReunion = $input.first().json.response;\nconst rawFilename = $('HTTP Request - Transcriber').first().json.filename || 'audio';\n\n// Sanitize filename to avoid invalid paths when writing files\nconst safeFilename = String(rawFilename)\n  .split('/')\n  .pop()\n  .split('\\\\')\n  .pop()\n  .replace(/[^a-zA-Z0-9_.-]/g, '_') || 'audio';\n\nconst fileStem = safeFilename.replace(/\\.[^/.]+$/, '') || 'audio';\n\nconst resultado = {\n  mensaje: '✅ Transcripción completada y acta de reunión generada',\n  filename: safeFilename,\n  file_stem: fileStem,\n  transcripcion: transcripcion,\n  acta_reunion: actaReunion,\n  timestamp: new Date().toISOString()\n};\n\n// Convert JSON to binary for file writing\nconst jsonString = JSON.stringify(resultado, null, 2);\nconst binaryData = Buffer.from(jsonString, 'utf-8');\n\nreturn [{\n  json: resultado,\n  binary: {\n    data: await this.helpers.prepareBinaryData(binaryData, `${fileStem}_acta.json`, 'application/json')\n  }\n}];"
       },
       "id": "code-resultado",
       "name": "Code - Resultado",
@@ -69,7 +69,7 @@
     },
     {
       "parameters": {
-        "fileName": "=/data/resultados/acta_{{ $json.filename.replace(/\\.[^/.]+$/, '') }}_{{ $now.format('yyyyMMdd_HHmmss') }}.json",
+        "fileName": "=/home/node/resultados/acta_{{ $json.file_stem || ($json.filename || 'audio').replace(/[^a-zA-Z0-9_.-]/g, '_').replace(/\\.[^/.]+$/, '') }}_{{ $now.format('yyyyMMdd_HHmmss') }}.json",
         "options": {}
       },
       "id": "write-file",
@@ -153,4 +153,3 @@
   "staticData": null,
   "id": "transcripcion-ollama"
 }
-
