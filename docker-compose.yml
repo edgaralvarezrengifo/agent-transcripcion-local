@@ -1,8 +1,33 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: n8n-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-n8n}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-n8n_password}
+      - POSTGRES_DB=${POSTGRES_DB:-n8n}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-n8n} -d ${POSTGRES_DB:-n8n}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: n8n-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
-    user: "1000:1000"
     ports:
       - "5678:5678"
     environment:
@@ -10,20 +35,71 @@ services:
       - N8N_PORT=5678
       - N8N_EDITOR_BASE_URL=http://localhost:5678
       - GENERIC_TIMEZONE=America/Bogota
+      - N8N_BINARY_DATA_MODE=default
+      - N8N_RESTRICT_FILE_ACCESS_TO=/home/node/resultados
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-change-this-in-prod}
+      - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true
+      - EXECUTIONS_MODE=queue
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-n8n_password}
+      - DB_POSTGRESDB_POOL_SIZE=${DB_POSTGRESDB_POOL_SIZE:-5}
+      - DB_POSTGRESDB_CONNECTION_TIMEOUT=${DB_POSTGRESDB_CONNECTION_TIMEOUT:-60000}
+      - QUEUE_BULL_REDIS_HOST=redis
+      - QUEUE_BULL_REDIS_PORT=6379
     volumes:
-      - ./n8n_data:/home/node/.n8n
-      - ./resultados:/data/resultados
+      - /home/ealvarez/agent-transcripcion-local/n8n_data:/home/node/.n8n
+      - ./resultados:/home/node/resultados
     depends_on:
-      - transcriber
-      - ollama
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      transcriber:
+        condition: service_started
+      ollama:
+        condition: service_started
+
+  n8n-worker:
+    image: n8nio/n8n:latest
+    command: worker --concurrency=${N8N_WORKER_CONCURRENCY:-5}
+    environment:
+      - GENERIC_TIMEZONE=America/Bogota
+      - N8N_RESTRICT_FILE_ACCESS_TO=/home/node/resultados
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-change-this-in-prod}
+      - EXECUTIONS_MODE=queue
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-n8n_password}
+      - DB_POSTGRESDB_POOL_SIZE=${DB_POSTGRESDB_POOL_SIZE:-5}
+      - DB_POSTGRESDB_CONNECTION_TIMEOUT=${DB_POSTGRESDB_CONNECTION_TIMEOUT:-60000}
+      - QUEUE_BULL_REDIS_HOST=redis
+      - QUEUE_BULL_REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - /home/ealvarez/agent-transcripcion-local/n8n_data:/home/node/.n8n
+      - ./resultados:/home/node/resultados
 
   transcriber:
     build: ./transcriber
     container_name: transcriber
+    runtime: nvidia
     ports:
       - "5000:5000"
     environment:
       - MODEL=base
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ./uploads:/app/uploads
 
@@ -31,20 +107,19 @@ services:
     image: ollama/ollama:latest
     container_name: ollama-3
     # Recommended for GPU support (uncomment if you have NVIDIA GPU)
-    # runtime: nvidia
-    # environment:
-    #   - NVIDIA_VISIBLE_DEVICES=all
-    #   - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    runtime: nvidia
+    environment:
+       - OLLAMA_KEEP_ALIVE=3600
+       - NVIDIA_VISIBLE_DEVICES=all
+       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_KEEP_ALIVE=3600
+
     command: ["serve"]
 
 
 volumes:
   ollama_data:
-
-
+  postgres_data:
