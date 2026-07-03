@@ -157,6 +157,10 @@ agent-transcripcion-local/
 - No subas tu `.env` al repositorio (incluye secretos).
 - Mantén fija la `N8N_ENCRYPTION_KEY` por entorno para evitar pérdida de acceso a credenciales cifradas.
 
+## Pruebas no funcionales
+El script de las pruebas no funcionales relaciadas para este proyecto se encuentra en el siguiente repositorio:
+https://github.com/edgaralvarezrengifo/agent-transcripcion-local-tests
+
 ## 📚 Referencias técnicas
 
 - [n8n docs](https://docs.n8n.io/)
